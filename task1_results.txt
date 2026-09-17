@@ -1,0 +1,11 @@
+OS Reported Logical Cores: 8
+Single Process Baseline Time T(1): 2.1233s
+
+Cores | Time(s) | Observed Speedup | Theoretical Linear
+-------------------------------------------------------
+    1 |  2.1573 |             0.98x |               1.00x
+    2 |  1.0949 |             1.94x |               2.00x
+    4 |  0.5966 |             3.56x |               4.00x
+    8 |  0.4938 |             4.30x |               8.00x
+   12 |  0.5292 |             4.01x |              12.00x
+   16 |  0.5678 |             3.74x |              16.00x

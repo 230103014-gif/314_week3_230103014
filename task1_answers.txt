@@ -1,0 +1,108 @@
+TASK 1 RESULTS
+
+Workers | Measured Time | Observed Speedup | Ideal Speedup | Parallel Efficiency
+1       | 2.1233 s      | 1.00x            | 1.00x         | 100.00%
+2       | 1.0949 s      | 1.94x            | 2.00x         | 96.96%
+4       | 0.5966 s      | 3.56x            | 4.00x         | 88.98%
+8       | 0.4938 s      | 4.30x            | 8.00x         | 53.75%
+12      | 0.5292 s      | 4.01x            | 12.00x        | 33.44%
+16      | 0.5678 s      | 3.74x            | 16.00x        | 23.37%
+
+Q1.1 – Inflection Point and Hardware Topology
+
+The observed speedup reached its maximum at p* = 8 workers. At 8 workers, the measured execution time was 0.4938 seconds and the observed speedup was 4.30x. When the allocation increased to 12 workers, the speedup decreased to 4.01x. At 16 workers, it decreased further to 3.74x. Therefore, p* = 8 is the inflection point, and the first measured degradation occurs at p = 12.
+
+My MacBook Pro contains an Apple M1 processor with 8 physical cores: 4 Performance cores and 4 Efficiency cores. It reports 8 logical cores. Unlike many Intel and AMD processors, the Apple M1 does not use SMT or Hyper-Threading, so its 8 logical cores correspond to 8 physical cores.
+
+The first four worker processes can primarily benefit from the four faster Performance cores. Increasing the allocation from 4 to 8 workers also uses the four slower Efficiency cores. This explains why speedup increased from 3.56x at four workers to only 4.30x at eight workers instead of reaching the ideal 8.00x speedup. Above eight workers, there are more processes than available physical cores. macOS must time-share the cores between processes, introducing context switching, process scheduling, cache competition, and resource contention. Consequently, performance degrades at 12 and 16 workers.
+
+Q1.2 – Calculation of the Parallel Fraction P
+
+The empirical measurements are:
+
+T(1) = 2.1233 seconds
+T(4) = 0.5966 seconds
+
+First, I calculate the observed four-worker speedup:
+
+S(4) = T(1) / T(4)
+
+S(4) = 2.1233 / 0.5966
+
+S(4) = 3.5590
+
+Amdahl’s Law for four workers is:
+
+S(4) = 1 / [(1 - P) + P/4]
+
+Substituting the measured speedup:
+
+3.5590 = 1 / [(1 - P) + P/4]
+
+Combine the terms in the denominator:
+
+(1 - P) + P/4 = 1 - 3P/4
+
+Therefore:
+
+3.5590 = 1 / (1 - 3P/4)
+
+Take the reciprocal of both sides:
+
+1 / 3.5590 = 1 - 3P/4
+
+0.2809777 = 1 - 3P/4
+
+Move the terms:
+
+3P/4 = 1 - 0.2809777
+
+3P/4 = 0.7190223
+
+Multiply both sides by 4/3:
+
+P = 0.7190223 × 4/3
+
+P = 0.9586964
+
+Therefore, the empirically estimated parallel fraction is:
+
+P ≈ 0.9587 = 95.87%
+
+The corresponding effective serial fraction is:
+
+1 - P = 1 - 0.9586964
+
+1 - P = 0.0413036 = 4.13%
+
+This means that approximately 95.87% of the measured workload behaves as parallelizable work on my machine, while approximately 4.13% consists of serial execution and parallel-processing overhead.
+
+Q1.3 – Asymptotic Speedup Limit
+
+Using the parallel fraction calculated in Q1.2:
+
+P = 0.9586964
+
+The asymptotic speedup limit is:
+
+S_max = 1 / (1 - P)
+
+S_max = 1 / (1 - 0.9586964)
+
+S_max = 1 / 0.0413036
+
+S_max ≈ 24.21x
+
+Therefore, according to Amdahl’s Law, the theoretical maximum speedup for this workload is approximately 24.21x, even if an unlimited number of processor cores were available.
+
+For a 128-core server, the predicted Amdahl speedup would be:
+
+S(128) = 1 / [(1 - P) + P/128]
+
+S(128) = 1 / [(1 - 0.9586964) + 0.9586964/128]
+
+S(128) = 1 / [0.0413036 + 0.0074898]
+
+S(128) ≈ 20.49x
+
+Therefore, purchasing a 128-core server would not make this workload 128 times faster. The model predicts a speedup of only approximately 20.49x with 128 cores, and even infinitely many cores could not exceed approximately 24.21x. The remaining serial fraction, together with process creation, communication, scheduling, and resource contention, limits the achievable performance. Many of the 128 cores would provide progressively smaller benefits for this fixed-size workload.

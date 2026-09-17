@@ -1,0 +1,112 @@
+TASK 2 RESULTS
+
+Configuration | Trial 1 | Trial 2 | Trial 3 | Median | Slowdown Multiplier
+Adjacent      | 0.6595 s | 0.6597 s | 0.6574 s | 0.6595 s | 1.00x baseline
+Padded        | 0.6551 s | 0.6526 s | 0.6496 s | 0.6526 s | 1.01x faster for padded layout
+
+Adjacent/Padded slowdown = 0.6595 / 0.6526 = 1.0106 ≈ 1.01x
+
+Q2.1 – Memory Footprint and Index Stride
+
+My machine uses a 64-bit version of CPython. A pointer or object reference on a 64-bit system occupies:
+
+64 bits / 8 bits per byte = 8 bytes
+
+A Python list does not store integer values directly inside its element array. Instead, every list position stores an 8-byte pointer to a Python integer object.
+
+For adjacent positions, the distance between pointer slots is:
+
+1 × 8 bytes = 8 bytes
+
+Therefore, several adjacent list references can occupy the same 64-byte cache line:
+
+64 bytes / 8 bytes per reference = 8 references per cache line
+
+In the padded configuration, each thread uses:
+
+padded_idx = thread_index × 16
+
+The distance between two consecutive thread locations is therefore:
+
+16 references × 8 bytes per reference = 128 bytes
+
+Since:
+
+128 bytes / 64 bytes per cache line = 2 cache lines
+
+each selected pointer slot is separated from the next selected slot by exactly two complete 64-byte cache lines.
+
+Mathematically, if the address of one selected slot is A, the next selected slot is:
+
+A + 128
+
+The corresponding cache-line numbers are:
+
+L1 = floor(A / 64)
+
+L2 = floor((A + 128) / 64)
+
+Because 128 = 2 × 64:
+
+L2 = floor(A / 64) + 2
+
+Therefore, the two selected pointer slots cannot occupy the same 64-byte cache line.
+
+An important CPython qualification is that an 8-byte list entry is only a reference. A Python integer is a separate heap-allocated object and occupies more than 8 bytes because it includes object metadata. The benchmark updates list references rather than contiguous raw 64-bit integer values. In addition, CPython’s Global Interpreter Lock prevents these Python threads from executing Python bytecode simultaneously. This explains why my measured difference was only approximately 1.01x.
+
+Q2.2 – MESI State Transitions
+
+The MESI protocol represents each cached line using one of four states:
+
+M – Modified: The core has the only valid copy, and it contains changes that may not yet exist in main memory.
+
+E – Exclusive: The core has the only cached copy, but the line has not been modified.
+
+S – Shared: Multiple cores may contain identical read-only copies of the line.
+
+I – Invalid: The cached copy cannot be used because another core has modified the line.
+
+Assume that the cache line containing indices 0 and 1 is initially present in the caches of Core 0 and Core 1 in the Shared state:
+
+Core 0: Shared
+Core 1: Shared
+
+When Core 0 increments index 0, it must obtain exclusive write ownership of the entire cache line. Core 0 sends an ownership or upgrade request across the coherent interconnect. This is commonly described as a BusUpgr or Read-For-Ownership request.
+
+The coherence mechanism sends an invalidation message to the other cores. Core 1 changes its copy of the line from Shared to Invalid. Core 0 can then modify index 0, and its copy changes from Shared to Modified:
+
+Core 0: Shared -> Modified
+Core 1: Shared -> Invalid
+
+Next, Core 1 attempts to increment index 1. Although index 1 is logically different from index 0, both values are assumed to belong to the same cache line. Core 1 cannot write through its Invalid copy, so it sends a Read-For-Ownership request for the complete line.
+
+Core 0 detects this request while holding the line in the Modified state. It must supply or write back the newest version of the line and surrender ownership. Core 0’s copy changes from Modified to Invalid, while Core 1 receives ownership and changes its copy to Modified:
+
+Core 0: Modified -> Invalid
+Core 1: Invalid -> Modified
+
+If Core 0 writes again, ownership moves back in the opposite direction. Repeated writes therefore cause the entire cache line to move between the cores even though the threads modify different array elements. This effect is called cache-line bouncing or false sharing, and it introduces coherence traffic and pipeline stalls.
+
+Apple Silicon uses its own coherent interconnect and is not publicly described as implementing the textbook MESI protocol exactly. However, the ownership and invalidation behaviour described above is the conceptual MESI model requested by this question. In this particular CPython benchmark, the GIL also serializes Python bytecode execution, so the expected hardware effect is largely hidden.
+
+Q2.3 – Industry Mechanisms for Preventing False Sharing
+
+1. C++ alignment with alignas
+
+C++11 provides the alignas specifier, which can force a frequently modified object to begin at a cache-line boundary. For example:
+
+struct alignas(64) Counter {
+    long long value;
+};
+
+The structure is aligned to a 64-byte boundary, and its size is rounded according to its alignment when it is placed in an array. Consequently, separate Counter objects do not occupy the same 64-byte cache line. Modern C++ can also use std::hardware_destructive_interference_size instead of hard-coding 64, allowing the implementation’s expected destructive-interference size to determine the alignment.
+
+This approach prevents false sharing at compile time, although it may increase memory consumption.
+
+2. Java HotSpot @Contended
+
+The HotSpot JVM provides the @Contended annotation for fields or classes that are frequently modified by different threads. The JVM inserts internal padding around the annotated data so it does not share a cache line with other frequently modified fields.
+
+For example, a frequently updated counter can be placed in a class annotated with @Contended. The JVM then controls the physical field layout and separates that counter from neighbouring fields. For user-defined classes, the relevant HotSpot configuration may require the -XX:-RestrictContended option.
+
+Both mechanisms trade additional memory usage for lower cache-coherence traffic. They are preferable to arbitrary manual padding because they explicitly communicate the required alignment or isolation to the compiler or virtual machine.

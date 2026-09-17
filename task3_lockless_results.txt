@@ -1,0 +1,4 @@
+Lockless Value: 2,000,000 / 2,000,000
+Lockless Execution Time: 0.0426s
+Locked Execution Time: 0.2733s
+Speedup over LockedCounter: 6.42x

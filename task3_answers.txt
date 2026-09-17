@@ -1,0 +1,141 @@
+TASK 3 RESULTS
+
+Architecture | Target Sum | Actual Sum | Defect Count | Time | Relative Overhead
+Unsafe Counter | 2,000,000 | 2,000,000 | 0 | 0.0962 s | 1.00x baseline
+Locked Counter | 2,000,000 | 2,000,000 | 0 | 0.2733 s | 2.84x
+Lockless Thread-Local Counter | 2,000,000 | 2,000,000 | 0 | 0.0426 s | 6.42x faster than LockedCounter
+
+Q3.1 – Unsafe Accumulator Analysis
+
+My UnsafeCounter produced the following empirical result:
+
+Expected value: 2,000,000
+Actual value: 2,000,000
+Lost-update defect count: 2,000,000 - 2,000,000 = 0
+
+Therefore, my exact observed corrupted count was zero. The supplied benchmark did not produce observable data corruption on CPython 3.11.9 during this execution.
+
+Conceptually, an increment is a read-modify-write operation consisting of three stages:
+
+1. LOAD: Read the current counter value from memory.
+2. ADD: Add one to the loaded value.
+3. STORE: Write the new value back to the counter.
+
+A lost update could occur with the following overlapping execution:
+
+Initial counter value = 100
+
+Thread A: LOAD 100
+Thread B: LOAD 100
+Thread A: ADD 1, producing 101
+Thread B: ADD 1, producing 101
+Thread A: STORE 101
+Thread B: STORE 101
+
+Two increments were requested, but the final value is only 101 instead of 102. Thread B overwrote Thread A’s update because both threads had loaded the same original value.
+
+In my actual experiment, this overlap did not occur observably because standard CPython uses the Global Interpreter Lock. The GIL allows only one thread at a time to execute ordinary Python bytecode inside a process. Under the scheduling behaviour of CPython 3.11.9, each observed increment completed without another thread producing a lost update.
+
+This result does not prove that an unprotected shared counter is a safe general concurrent design. The operation consists of multiple interpreter operations and should not be treated as a portable synchronization guarantee. A different Python implementation, scheduling pattern, native extension, or operation that releases the GIL could expose the race condition. I therefore report the empirical result honestly: actual value 2,000,000 and defect count 0.
+
+Q3.2 – Lockless Thread-Local Accumulator
+
+Complete implementation:
+
+import threading
+import time
+
+
+TOTAL_OPS = 2_000_000
+NUM_THREADS = 4
+LOCKED_TIME = 0.2733
+
+
+def bench_lockless():
+    partial_results = [0] * NUM_THREADS
+    ops_per_thread = TOTAL_OPS // NUM_THREADS
+
+    def work(thread_index):
+        local_counter = 0
+
+        for _ in range(ops_per_thread):
+            local_counter += 1
+
+        partial_results[thread_index] = local_counter
+
+    threads = [
+        threading.Thread(target=work, args=(i,))
+        for i in range(NUM_THREADS)
+    ]
+
+    start = time.perf_counter()
+
+    for thread in threads:
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+
+    final_value = sum(partial_results)
+    elapsed = time.perf_counter() - start
+
+    return final_value, elapsed
+
+
+if __name__ == "__main__":
+    value, lockless_time = bench_lockless()
+    speedup = LOCKED_TIME / lockless_time
+
+    print(f"Lockless Value: {value:,} / {TOTAL_OPS:,}")
+    print(f"Lockless Execution Time: {lockless_time:.4f}s")
+    print(f"Locked Execution Time: {LOCKED_TIME:.4f}s")
+    print(f"Speedup over LockedCounter: {speedup:.2f}x")
+
+
+Empirical results:
+
+Final lockless value = 2,000,000
+Lockless execution time = 0.0426 seconds
+LockedCounter execution time = 0.2733 seconds
+
+The speedup is:
+
+Speedup = LockedCounter time / Lockless time
+
+Speedup = 0.2733 / 0.0426
+
+Speedup = 6.4155 ≈ 6.42x
+
+The lockless implementation was approximately 6.42 times faster than the locked implementation. It therefore exceeded the required minimum speedup of 2.0x.
+
+Each thread performs 500,000 increments using its own local_counter variable:
+
+2,000,000 / 4 = 500,000 operations per thread
+
+After completing its work, each thread writes its result to a unique position in partial_results. No two threads update the same list position. After all threads have been joined, the main thread performs the reduction:
+
+500,000 + 500,000 + 500,000 + 500,000 = 2,000,000
+
+The join operations ensure that every worker has finished before the final reduction begins. Therefore, the result deterministically equals exactly 2,000,000 without using a mutex.
+
+Q3.3 – Why Eliminating Shared Mutable State Is Superior
+
+Eliminating shared mutable state is fundamentally superior because it removes the source of contention instead of attempting to manage contention more efficiently.
+
+With a shared counter, all threads repeatedly compete to update the same memory location. A mutex must serialize these updates, meaning that only one thread can enter the critical section at a time. This produces several costs:
+
+1. Threads spend time waiting instead of doing useful work.
+2. Lock acquisition and release add synchronization instructions.
+3. The operating system may suspend and wake blocked threads.
+4. Frequent scheduling can introduce context-switching overhead.
+5. The cache line containing the lock and shared value moves between cores.
+6. More threads create more contention instead of proportional throughput.
+7. Locks introduce risks such as deadlock, starvation, and priority inversion.
+
+Adaptive spinlocks may reduce the cost of sleeping when the wait is short, but they consume CPU cycles while waiting. Read-write locks can help read-heavy workloads, but they provide little benefit when every operation modifies the same counter. These mechanisms optimize how threads wait; they do not eliminate the shared bottleneck.
+
+The thread-local Map-Reduce design partitions the work. During the map stage, every thread updates private state and does not compete with other threads. After all workers finish, the reduction stage combines their partial results once. Synchronization occurs only at the join and final reduction rather than on every increment.
+
+In this experiment, the locked design required synchronization for 2,000,000 individual increments, while the lockless design required only four independent partial results followed by one reduction. This reduced execution time from 0.2733 seconds to 0.0426 seconds, producing a measured speedup of 6.42x.
+
+Therefore, thread-local state provides better scalability, lower synchronization overhead, simpler correctness reasoning, and fewer concurrency hazards than increasingly complex lock optimization.

@@ -1,0 +1,12 @@
+=== Trial 1 ===
+Adjacent Indices (False Sharing): 0.6595s
+Padded Indices (Cache-Aligned): 0.6551s
+Slowdown Factor: 1.01x
+=== Trial 2 ===
+Adjacent Indices (False Sharing): 0.6597s
+Padded Indices (Cache-Aligned): 0.6526s
+Slowdown Factor: 1.01x
+=== Trial 3 ===
+Adjacent Indices (False Sharing): 0.6574s
+Padded Indices (Cache-Aligned): 0.6496s
+Slowdown Factor: 1.01x
