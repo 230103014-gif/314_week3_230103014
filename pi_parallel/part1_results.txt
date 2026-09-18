@@ -1,0 +1,26 @@
+(.venv) nazerke@MacBook-Pro-Nazerke pi_parallel % java Part1PhantomBug
+Total hits: 12306210
+Estimated PI: 0.9844968
+Runtime: 148.349042 ms
+(.venv) nazerke@MacBook-Pro-Nazerke pi_parallel % java Part1PhantomBug
+Total hits: 12260382
+Estimated PI: 0.98083056
+Runtime: 141.531292 ms
+(.venv) nazerke@MacBook-Pro-Nazerke pi_parallel % java Part1PhantomBug
+Total hits: 12251805
+Estimated PI: 0.9801444
+Runtime: 145.853458 ms
+(.venv) nazerke@MacBook-Pro-Nazerke pi_parallel % java Part1PhantomBug
+Total hits: 12285378
+Estimated PI: 0.98283024
+Runtime: 139.692125 ms
+(.venv) nazerke@MacBook-Pro-Nazerke pi_parallel % java Part1PhantomBug
+Total hits: 12202087
+Estimated PI: 0.97616696
+Runtime: 145.151667 ms
+
+Summary:
+Average Estimated PI: 0.980893792
+Average Runtime: 144.115517 ms
+Minimum Estimated PI: 0.97616696
+Maximum Estimated PI: 0.9844968

@@ -1,0 +1,111 @@
+(.venv) nazerke@MacBook-Pro-Nazerke pi_parallel % javac Part2Synchronization.java
+(.venv) nazerke@MacBook-Pro-Nazerke pi_parallel % java Part2Synchronization
+=== SYNCHRONIZED VERSION ===
+Total hits: 39270247
+Estimated PI: 3.14161976
+Runtime: 2238.819625 ms
+
+=== SINGLE-THREADED VERSION ===
+Total hits: 39266743
+Estimated PI: 3.14133944
+Runtime: 282.183833 ms
+(.venv) nazerke@MacBook-Pro-Nazerke pi_parallel % javac Part3Reduction.java
+(.venv) nazerke@MacBook-Pro-Nazerke pi_parallel % java Part3Reduction
+=== OPENMP-STYLE REDUCTION ===
+1 threads | Hits: 78541976 | PI: 3.14167904 | Runtime: 441.893375 ms
+2 threads | Hits: 78543602 | PI: 3.14174408 | Runtime: 291.240916 ms
+4 threads | Hits: 78532427 | PI: 3.14129708 | Runtime: 147.955875 ms
+8 threads | Hits: 78541954 | PI: 3.14167816 | Runtime: 136.472542 ms
+16 threads | Hits: 78543152 | PI: 3.14172608 | Runtime: 122.412 ms
+32 threads | Hits: 78529802 | PI: 3.14119208 | Runtime: 121.069167 ms
+
+Threads | Runtime(ms) | Speedup | Efficiency
+--------------------------------------------
+      1 |     441.893 |    1.00x |    100.00%
+      2 |     291.241 |    1.52x |     75.86%
+      4 |     147.956 |    2.99x |     74.67%
+      8 |     136.473 |    3.24x |     40.47%
+     16 |     122.412 |    3.61x |     22.56%
+     32 |     121.069 |    3.65x |     11.41%
+(.venv) nazerke@MacBook-Pro-Nazerke pi_parallel % 
+
+Configuration:
+Total points: 100,000,000
+Method: Thread-local counters + final reduction
+Shared-state locks: None
+
+Raw Results:
+
+1 Thread
+Total hits: 78,541,976
+Estimated PI: 3.14167904
+Runtime: 441.893375 ms
+
+2 Threads
+Total hits: 78,543,602
+Estimated PI: 3.14174408
+Runtime: 291.240916 ms
+
+4 Threads
+Total hits: 78,532,427
+Estimated PI: 3.14129708
+Runtime: 147.955875 ms
+
+8 Threads
+Total hits: 78,541,954
+Estimated PI: 3.14167816
+Runtime: 136.472542 ms
+
+16 Threads
+Total hits: 78,543,152
+Estimated PI: 3.14172608
+Runtime: 122.412000 ms
+
+32 Threads
+Total hits: 78,529,802
+Estimated PI: 3.14119208
+Runtime: 121.069167 ms
+
+
+Benchmark Table:
+
+Threads | Runtime (ms) | Speedup | Efficiency
+------------------------------------------------
+1       | 441.893      | 1.00x   | 100.00%
+2       | 291.241      | 1.52x   | 75.86%
+4       | 147.956      | 2.99x   | 74.67%
+8       | 136.473      | 3.24x   | 40.47%
+16      | 122.412      | 3.61x   | 22.56%
+32      | 121.069      | 3.65x   | 11.41%
+
+
+QUESTION 1
+
+At 8 threads, the runtime was 136.473 ms, while at 16 threads
+it decreased only to 122.412 ms. This represents approximately
+a 1.11x improvement rather than 2x.
+
+Doubling the number of software threads does not double the
+physical CPU resources. Once the available physical cores are
+saturated, additional threads must share execution resources.
+This introduces scheduling overhead, context switching, cache
+contention, and resource competition.
+
+This is also visible in the parallel efficiency, which decreased
+from 40.47% at 8 threads to 22.56% at 16 threads.
+
+
+QUESTION 2
+
+The synchronized version took 2238.820 ms, while the
+single-threaded version took only 282.184 ms.
+
+Slowdown = 2238.820 / 282.184 ≈ 7.93x
+
+The synchronized version was slower because all four threads
+repeatedly competed for the same lock protecting totalHits.
+Only one thread could increment the shared counter at a time,
+so this part of the program became effectively serialized.
+The repeated lock acquisition, waiting, scheduling, and cache
+synchronization overhead outweighed the benefit of using
+multiple threads.
