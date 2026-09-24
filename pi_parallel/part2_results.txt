@@ -1,0 +1,34 @@
+(.venv) nazerke@MacBook-Pro-Nazerke pi_parallel % javac Part2Synchronization.java
+(.venv) nazerke@MacBook-Pro-Nazerke pi_parallel % java Part2Synchronization
+=== SYNCHRONIZED VERSION ===
+Total hits: 39270247
+Estimated PI: 3.14161976
+Runtime: 2238.819625 ms
+
+=== SINGLE-THREADED VERSION ===
+Total hits: 39266743
+Estimated PI: 3.14133944
+Runtime: 282.183833 ms
+(.venv) nazerke@MacBook-Pro-Nazerke pi_parallel % 
+
+
+Configuration:
+Total points: 50,000,000
+Threads in synchronized version: 4
+
+Synchronized Version
+Total hits: 39,270,247
+Estimated PI: 3.14161976
+Runtime: 2238.819625 ms
+
+Single-Threaded Version
+Total hits: 39,266,743
+Estimated PI: 3.14133944
+Runtime: 282.183833 ms
+
+Performance Comparison:
+Slowdown factor = 2238.819625 / 282.183833
+Slowdown factor ≈ 7.93x
+
+Conclusion:
+The synchronized version produced a correct estimate of PI, but it was approximately 7.93 times slower than the single-threaded version in this run.

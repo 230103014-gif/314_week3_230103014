@@ -1,0 +1,11 @@
+Sequential baseline T_seq = 2.077389 s
+Two-thread time T_2 = (1.107283 + 1.112304) / 2 = 1.1097935 s
+
+S_emp(2) = T_seq / T_2 = 1.8719
+p = 2 × (1 − 1/S_emp(2)) = 0.9315
+
+Threads   Empirical speedup   Amdahl prediction   Gap (theory - empirical)
+1         1.0004              1.0000              -0.0004
+2         1.8719              1.8719               0.0000
+4         3.5704              3.3185              -0.2519
+8         5.2687              5.4085               0.1398
