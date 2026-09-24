@@ -1,5 +1,9 @@
 # Technical Analysis
 
+Student: Sabit Nazerke
+Student ID: 230103014
+Git repository: https://github.com/230103014-gif/314_week3_230103014
+Practicum date: 24 September 2026
 Hardware: Apple M1 (MacBookPro17,1), 4 Performance cores and 4 Efficiency cores, 8 physical and 8 logical cores. Reported cache line size: 128 bytes. Workload: N = 13,014,000.
 
 ## Q1. False sharing
